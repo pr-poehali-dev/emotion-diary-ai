@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import Icon from '@/components/ui/icon';
 
 interface Entry {
@@ -14,6 +15,7 @@ interface Entry {
   emotionEmoji: string;
   note: string;
   intensity: number;
+  triggers?: string[];
 }
 
 interface Trigger {
@@ -26,6 +28,7 @@ const Index = () => {
   const [currentEmotion, setCurrentEmotion] = useState('');
   const [currentNote, setCurrentNote] = useState('');
   const [currentIntensity, setCurrentIntensity] = useState(5);
+  const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
   const [entries, setEntries] = useState<Entry[]>([
     {
       id: 1,
@@ -33,7 +36,8 @@ const Index = () => {
       emotion: 'Радость',
       emotionEmoji: '😊',
       note: 'Отличный день на работе, получил похвалу от руководителя',
-      intensity: 8
+      intensity: 8,
+      triggers: ['Работа']
     },
     {
       id: 2,
@@ -41,7 +45,62 @@ const Index = () => {
       emotion: 'Тревога',
       emotionEmoji: '😰',
       note: 'Беспокоюсь о предстоящей презентации',
-      intensity: 6
+      intensity: 6,
+      triggers: ['Работа']
+    },
+    {
+      id: 3,
+      date: '2025-11-29',
+      emotion: 'Грусть',
+      emotionEmoji: '😢',
+      note: 'Ссора с партнером из-за недопонимания',
+      intensity: 7,
+      triggers: ['Отношения']
+    },
+    {
+      id: 4,
+      date: '2025-11-28',
+      emotion: 'Тревога',
+      emotionEmoji: '😰',
+      note: 'Волнуюсь о результатах анализов',
+      intensity: 8,
+      triggers: ['Здоровье']
+    },
+    {
+      id: 5,
+      date: '2025-11-27',
+      emotion: 'Злость',
+      emotionEmoji: '😠',
+      note: 'Неожиданные расходы на ремонт машины',
+      intensity: 6,
+      triggers: ['Финансы']
+    },
+    {
+      id: 6,
+      date: '2025-11-26',
+      emotion: 'Радость',
+      emotionEmoji: '😊',
+      note: 'Замечательный вечер с друзьями',
+      intensity: 9,
+      triggers: ['Отношения']
+    },
+    {
+      id: 7,
+      date: '2025-11-25',
+      emotion: 'Тревога',
+      emotionEmoji: '😰',
+      note: 'Беспокоюсь о дедлайне проекта',
+      intensity: 7,
+      triggers: ['Работа']
+    },
+    {
+      id: 8,
+      date: '2025-11-24',
+      emotion: 'Спокойствие',
+      emotionEmoji: '😌',
+      note: 'Получил повышение зарплаты',
+      intensity: 5,
+      triggers: ['Работа', 'Финансы']
     }
   ]);
 
@@ -294,13 +353,15 @@ const Index = () => {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {triggers.map((trigger) => (
-                    <div
+                    <button
                       key={trigger.name}
-                      className={`p-4 rounded-xl ${trigger.color} text-center`}
+                      onClick={() => setSelectedTrigger(trigger.name)}
+                      className={`p-4 rounded-xl ${trigger.color} text-center transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer`}
                     >
                       <div className="text-2xl font-bold mb-1">{trigger.count}</div>
                       <div className="text-sm font-medium">{trigger.name}</div>
-                    </div>
+                      <Icon name="ChevronRight" size={16} className="mx-auto mt-2 opacity-60" />
+                    </button>
                   ))}
                 </div>
               </CardContent>
@@ -460,6 +521,132 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={!!selectedTrigger} onOpenChange={() => setSelectedTrigger(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <Icon name="Target" size={28} />
+              Триггер: {selectedTrigger}
+            </DialogTitle>
+            <DialogDescription>
+              Анализ записей, связанных с этим триггером
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTrigger && (() => {
+            const triggerEntries = entries.filter(e => 
+              e.triggers?.includes(selectedTrigger)
+            );
+            
+            const triggerEmotions = emotions.map(emotion => ({
+              ...emotion,
+              count: triggerEntries.filter(e => e.emotion === emotion.name).length
+            })).filter(e => e.count > 0);
+
+            const avgIntensity = triggerEntries.length > 0
+              ? Math.round(triggerEntries.reduce((sum, e) => sum + e.intensity, 0) / triggerEntries.length)
+              : 0;
+
+            const triggerColor = triggers.find(t => t.name === selectedTrigger)?.color || 'bg-gray-200';
+
+            return (
+              <div className="space-y-6 mt-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className={`p-4 rounded-xl ${triggerColor} text-center`}>
+                    <div className="text-sm text-muted-foreground mb-1">Всего записей</div>
+                    <div className="text-3xl font-bold">{triggerEntries.length}</div>
+                  </div>
+                  <div className={`p-4 rounded-xl ${triggerColor} text-center`}>
+                    <div className="text-sm text-muted-foreground mb-1">Средняя интенсивность</div>
+                    <div className="text-3xl font-bold">{avgIntensity}/10</div>
+                  </div>
+                  <div className={`p-4 rounded-xl ${triggerColor} text-center`}>
+                    <div className="text-sm text-muted-foreground mb-1">Дней</div>
+                    <div className="text-3xl font-bold">
+                      {new Set(triggerEntries.map(e => e.date)).size}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Icon name="Heart" size={20} />
+                    Распределение эмоций
+                  </h3>
+                  <div className="space-y-3">
+                    {triggerEmotions.map((emotion) => (
+                      <div key={emotion.name} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            <span className="text-2xl">{emotion.emoji}</span>
+                            <span className="font-medium">{emotion.name}</span>
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {emotion.count} раз ({Math.round((emotion.count / triggerEntries.length) * 100)}%)
+                          </span>
+                        </div>
+                        <Progress
+                          value={(emotion.count / triggerEntries.length) * 100}
+                          className={`h-2 ${emotion.color}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Icon name="Clock" size={20} />
+                    История записей
+                  </h3>
+                  <div className="space-y-3">
+                    {triggerEntries.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="p-4 rounded-xl border-2 border-border bg-card hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <span className="text-3xl">{entry.emotionEmoji}</span>
+                            <div>
+                              <h4 className="font-semibold">{entry.emotion}</h4>
+                              <p className="text-sm text-muted-foreground">{entry.date}</p>
+                            </div>
+                          </div>
+                          <Badge variant="secondary">
+                            {entry.intensity}/10
+                          </Badge>
+                        </div>
+                        <p className="text-sm mt-2">{entry.note}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-xl ${triggerColor} border-2 border-primary/20`}>
+                  <div className="flex items-start gap-3">
+                    <Icon name="Lightbulb" size={24} className="mt-1 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-semibold mb-2">Рекомендации</h4>
+                      <p className="text-sm leading-relaxed">
+                        {selectedTrigger === 'Работа' && 
+                          'Заметно, что работа вызывает разные эмоции. Попробуй техники тайм-менеджмента и регулярные перерывы для снижения стресса.'}
+                        {selectedTrigger === 'Отношения' && 
+                          'Отношения влияют на твоё эмоциональное состояние. Открытое общение и активное слушание могут помочь улучшить взаимопонимание.'}
+                        {selectedTrigger === 'Здоровье' && 
+                          'Забота о здоровье важна для эмоционального баланса. Регулярные осмотры и здоровый образ жизни помогут снизить тревогу.'}
+                        {selectedTrigger === 'Финансы' && 
+                          'Финансовые вопросы требуют планирования. Составь бюджет и создай финансовую подушку для спокойствия.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
