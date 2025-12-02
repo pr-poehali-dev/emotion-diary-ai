@@ -28,6 +28,7 @@ const Index = () => {
   const [currentEmotion, setCurrentEmotion] = useState('');
   const [currentNote, setCurrentNote] = useState('');
   const [currentIntensity, setCurrentIntensity] = useState(5);
+  const [currentTriggers, setCurrentTriggers] = useState<string[]>([]);
   const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
   const [entries, setEntries] = useState<Entry[]>([
     {
@@ -135,13 +136,23 @@ const Index = () => {
         emotion: currentEmotion,
         emotionEmoji: emotion?.emoji || '😊',
         note: currentNote,
-        intensity: currentIntensity
+        intensity: currentIntensity,
+        triggers: currentTriggers.length > 0 ? currentTriggers : undefined
       };
       setEntries([newEntry, ...entries]);
       setCurrentEmotion('');
       setCurrentNote('');
       setCurrentIntensity(5);
+      setCurrentTriggers([]);
     }
+  };
+
+  const toggleTrigger = (triggerName: string) => {
+    setCurrentTriggers(prev => 
+      prev.includes(triggerName)
+        ? prev.filter(t => t !== triggerName)
+        : [...prev, triggerName]
+    );
   };
 
   const emotionStats = emotions.map(emotion => ({
@@ -242,6 +253,32 @@ const Index = () => {
                   />
                 </div>
 
+                <div>
+                  <label className="text-sm font-medium mb-3 block">
+                    Триггеры (необязательно)
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {triggers.map((trigger) => (
+                      <button
+                        key={trigger.name}
+                        onClick={() => toggleTrigger(trigger.name)}
+                        className={`p-3 rounded-xl border-2 transition-all duration-200 text-sm font-medium ${
+                          currentTriggers.includes(trigger.name)
+                            ? `${trigger.color} border-primary scale-105 shadow-lg`
+                            : 'bg-card border-border hover:scale-105 hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          {currentTriggers.includes(trigger.name) && (
+                            <Icon name="Check" size={16} />
+                          )}
+                          {trigger.name}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <Button
                   onClick={handleSaveEntry}
                   disabled={!currentEmotion || !currentNote}
@@ -288,6 +325,113 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="stats" className="space-y-6 animate-scale-in">
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Icon name="LineChart" size={24} />
+                  График настроения
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="h-64 relative">
+                    {(() => {
+                      const sortedEntries = [...entries].sort((a, b) => 
+                        new Date(a.date).getTime() - new Date(b.date).getTime()
+                      );
+                      
+                      const maxIntensity = 10;
+                      const chartHeight = 220;
+                      const chartWidth = 100;
+                      
+                      if (sortedEntries.length === 0) return null;
+                      
+                      const points = sortedEntries.map((entry, idx) => ({
+                        x: (idx / Math.max(sortedEntries.length - 1, 1)) * chartWidth,
+                        y: chartHeight - (entry.intensity / maxIntensity) * chartHeight,
+                        entry
+                      }));
+                      
+                      const pathD = points.map((point, idx) => 
+                        `${idx === 0 ? 'M' : 'L'} ${point.x},${point.y}`
+                      ).join(' ');
+                      
+                      const areaD = `${pathD} L ${points[points.length - 1].x},${chartHeight} L 0,${chartHeight} Z`;
+
+                      return (
+                        <svg 
+                          viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
+                          className="w-full h-full"
+                          preserveAspectRatio="none"
+                        >
+                          <defs>
+                            <linearGradient id="intensityGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="rgb(155, 135, 245)" stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="rgb(155, 135, 245)" stopOpacity="0.05" />
+                            </linearGradient>
+                          </defs>
+                          
+                          <path
+                            d={areaD}
+                            fill="url(#intensityGradient)"
+                          />
+                          
+                          <path
+                            d={pathD}
+                            fill="none"
+                            stroke="rgb(155, 135, 245)"
+                            strokeWidth="0.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          
+                          {points.map((point, idx) => (
+                            <g key={idx}>
+                              <circle
+                                cx={point.x}
+                                cy={point.y}
+                                r="1.5"
+                                fill="rgb(155, 135, 245)"
+                                className="hover:r-2 transition-all cursor-pointer"
+                              />
+                            </g>
+                          ))}
+                        </svg>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t">
+                    {(() => {
+                      const sortedEntries = [...entries]
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .slice(0, 8);
+                      
+                      return sortedEntries.map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="p-3 rounded-lg bg-card border-2 border-border hover:border-primary/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xl">{entry.emotionEmoji}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {entry.intensity}/10
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(entry.date).toLocaleDateString('ru-RU', { 
+                              day: 'numeric', 
+                              month: 'short' 
+                            })}
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
